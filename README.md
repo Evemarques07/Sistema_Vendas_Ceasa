@@ -99,6 +99,7 @@ python init_db.py
 ```
 
 Isso criará os usuários padrão:
+
 - **Admin**: `admin@ceasa.com` / `admin123`
 - **Funcionário**: `funcionario@ceasa.com` / `func123`
 
@@ -111,6 +112,7 @@ uvicorn app.main:app --reload --port 8000
 ## 📚 Documentação da API
 
 Acesse a documentação interativa em:
+
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 
@@ -182,6 +184,7 @@ alembic downgrade -1
 ### Perfis de Usuário
 
 #### ADMINISTRADOR
+
 - ✅ Criar e gerenciar vendas
 - ✅ Gerenciar clientes e produtos
 - ✅ Controlar estoque e entradas
@@ -189,6 +192,7 @@ alembic downgrade -1
 - ✅ Gerenciar usuários
 
 #### FUNCIONÁRIO
+
 - ✅ Visualizar vendas
 - ✅ Separar pedidos
 - ✅ Atualizar quantidades reais
@@ -223,24 +227,28 @@ CORS_ORIGINS=["https://seu-frontend.com"]
 ## � Funcionalidades
 
 ### Dashboard
+
 - Vendas do período
 - Estatísticas de clientes
 - Alertas de estoque baixo
 - Vendas por mês
 
 ### Gestão de Vendas
+
 - Criação de pedidos
 - Controle de status (A_SEPARAR → SEPARADO)
 - Acompanhamento de pagamentos
 - Histórico completo
 
 ### Controle de Estoque
+
 - Sistema FIFO automático
 - Entrada de mercadorias
 - Alertas de estoque mínimo
 - Rastreamento de movimentações
 
 ### Relatórios
+
 - Vendas por período
 - Clientes mais ativos
 - Produtos mais vendidos
@@ -257,6 +265,7 @@ Para dúvidas ou problemas:
 ### Problemas Comuns
 
 **Erro de conexão com banco:**
+
 ```bash
 # Verifique se o MySQL está rodando
 docker-compose ps
@@ -266,6 +275,7 @@ mysql -h localhost -P 3307 -u vendas_user -p vendas_ceasa
 ```
 
 **Erro de migração:**
+
 ```bash
 # Reset do banco (CUIDADO: apaga todos os dados)
 alembic downgrade base
@@ -283,6 +293,7 @@ Este projeto é privado e proprietário.
 - Status ativo/inativo
 
 ### 🥕 **Catálogo de Produtos**
+
 - Produtos com tipos de medida (kg, unidade, litro, caixa, saco, dúzia)
 - Controle de preços de venda
 - Estoque mínimo configurável
@@ -290,6 +301,7 @@ Este projeto é privado e proprietário.
 - Sistema de ativação/desativação
 
 ### 💰 **Sistema de Vendas**
+
 - Criação de pedidos com múltiplos itens
 - Fluxo: Pedido → Separação → Pagamento
 - Cálculo automático de totais
@@ -297,6 +309,7 @@ Este projeto é privado e proprietário.
 - Rastreamento de funcionário responsável pela separação
 
 ### 📦 **Controle de Estoque FIFO**
+
 - Sistema First In, First Out (FIFO) para cálculo de custos
 - Entradas de estoque com preço de custo
 - Baixa automática no estoque durante vendas
@@ -305,6 +318,7 @@ Este projeto é privado e proprietário.
 - Histórico completo de movimentações
 
 ### 💹 **Relatórios Financeiros**
+
 - **Fluxo de Caixa**: Entradas, saídas e saldo
 - **Rentabilidade**: Lucro bruto e margem por produto/período
 - **Pagamentos Pendentes**: Controle de inadimplência
@@ -312,6 +326,7 @@ Este projeto é privado e proprietário.
 - **Histórico por Cliente**: Análise individual de vendas
 
 ### 🔐 **Sistema de Autenticação**
+
 - Login JWT com roles (Administrador/Funcionário)
 - Controle de permissões por funcionalidade
 - Segurança em todos os endpoints
@@ -336,12 +351,14 @@ Este projeto é privado e proprietário.
 ## ⚡ Instalação e Execução
 
 ### 1. **Clone o repositório**
+
 ```bash
 git clone <url-do-repositorio>
 cd backend-vendas-ceasa
 ```
 
 ### 2. **Configure as variáveis de ambiente**
+
 ```bash
 cp .env.example .env
 # Edite o .env conforme necessário
@@ -350,6 +367,7 @@ cp .env.example .env
 ### 3. **Subir com Docker (Recomendado)**
 
 #### **Opção A: Ambiente Completo (Produção)**
+
 ```bash
 # Subir MySQL + FastAPI em containers
 docker compose up -d
@@ -362,6 +380,7 @@ docker compose logs -f
 ```
 
 #### **Opção B: Desenvolvimento Híbrido**
+
 ```bash
 # Apenas MySQL em container
 docker compose up mysql -d
@@ -372,11 +391,13 @@ uvicorn app.main:app --reload
 ```
 
 ### 4. **Inicializar banco de dados**
+
 ```bash
 python init_db.py
 ```
 
 ### 5. **Acessar a aplicação**
+
 - **API**: http://localhost:8000
 - **Documentação**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
@@ -385,6 +406,7 @@ python init_db.py
 ## 🐳 Comandos Docker Úteis
 
 ### **Gerenciamento de Serviços**
+
 ```bash
 # Subir todos os serviços
 docker compose up -d
@@ -419,6 +441,7 @@ docker compose restart api
 ```
 
 ### **PHPMyAdmin para Desenvolvimento**
+
 ```bash
 # Subir com PHPMyAdmin
 docker compose --profile dev up -d
@@ -434,11 +457,13 @@ docker compose --profile dev up -d
 Após executar `python init_db.py`, os seguintes usuários são criados:
 
 ### **Administrador**
+
 - **Email**: `admin@ceasa.com`
 - **Senha**: `admin123`
 - **Permissões**: Acesso total ao sistema
 
 ### **Funcionário**
+
 - **Email**: `funcionario@ceasa.com`
 - **Senha**: `func123`
 - **Permissões**: Separação de pedidos, consultas
@@ -456,15 +481,18 @@ O sistema de separação permite que **funcionários** pesem/contem os produtos 
 **Permissão**: Usuários autenticados (funcionários e admins)
 
 **Path Parameters**:
+
 - `venda_id` (int, obrigatório): ID da venda a ser separada
 
 **Headers**:
+
 ```
 Authorization: Bearer {seu_token_jwt}
 Content-Type: application/json
 ```
 
 **Body (JSON)**:
+
 ```json
 {
   "produtos_separados": [
@@ -481,6 +509,7 @@ Content-Type: application/json
 ```
 
 **Exemplo Completo com cURL**:
+
 ```bash
 curl -X PUT "http://localhost:8000/api/vendas/1/separacao" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
@@ -500,6 +529,7 @@ curl -X PUT "http://localhost:8000/api/vendas/1/separacao" \
 ```
 
 **Response de Sucesso (200)**:
+
 ```json
 {
   "data": {
@@ -510,7 +540,7 @@ curl -X PUT "http://localhost:8000/api/vendas/1/separacao" \
       "nome": "João Silva",
       "email": "joao@silva.com"
     },
-    "total_venda": 87.50,
+    "total_venda": 87.5,
     "situacao_pedido": "Separado",
     "situacao_pagamento": "Pendente",
     "data_venda": "2025-08-08T10:00:00",
@@ -534,8 +564,8 @@ curl -X PUT "http://localhost:8000/api/vendas/1/separacao" \
         "quantidade": 2.5,
         "quantidade_real": 2.3,
         "tipo_medida": "kg",
-        "valor_unitario": 8.00,
-        "valor_total_produto": 18.40
+        "valor_unitario": 8.0,
+        "valor_total_produto": 18.4
       }
     ]
   },
@@ -551,12 +581,14 @@ curl -X PUT "http://localhost:8000/api/vendas/1/separacao" \
 **Permissão**: Usuários autenticados (funcionários e admins)
 
 **Exemplo com cURL**:
+
 ```bash
 curl -X PUT "http://localhost:8000/api/vendas/1/cancelar-separacao" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
 **Response de Sucesso (200)**:
+
 ```json
 {
   "data": {
@@ -564,12 +596,12 @@ curl -X PUT "http://localhost:8000/api/vendas/1/cancelar-separacao" \
     "situacao_pedido": "A separar",
     "funcionario_separacao_id": null,
     "data_separacao": null,
-    "total_venda": 92.50,
+    "total_venda": 92.5,
     "itens": [
       {
         "quantidade": 2.5,
         "quantidade_real": null,
-        "valor_total_produto": 20.00
+        "valor_total_produto": 20.0
       }
     ]
   },
@@ -591,6 +623,7 @@ O sistema de estoque gerencia entradas de produtos, controle de inventário, ale
 **Permissão**: Usuários autenticados
 
 **Query Parameters**:
+
 - `skip` (int, opcional): Registros para pular (padrão: 0)
 - `limit` (int, opcional): Registros por página (padrão: 20, máx: 100)
 - `produto_id` (int, opcional): Filtrar por produto específico
@@ -598,6 +631,7 @@ O sistema de estoque gerencia entradas de produtos, controle de inventário, ale
 - `data_fim` (date, opcional): Data final (YYYY-MM-DD)
 
 **Exemplo com cURL**:
+
 ```bash
 curl -X GET "http://localhost:8000/api/estoque/entradas?limit=10&produto_id=1&data_inicio=2025-08-01" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -610,18 +644,20 @@ curl -X GET "http://localhost:8000/api/estoque/entradas?limit=10&produto_id=1&da
 **Permissão**: Apenas administradores
 
 **Body (JSON)**:
+
 ```json
 {
   "produto_id": 1,
   "quantidade": 25.5,
   "tipo_medida": "kg",
-  "preco_custo": 4.20,
+  "preco_custo": 4.2,
   "fornecedor": "Fazenda Verde Ltda",
   "observacoes": "Entrega da manhã - produtos frescos"
 }
 ```
 
 **Exemplo com cURL**:
+
 ```bash
 curl -X POST "http://localhost:8000/api/estoque/entradas" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
@@ -641,9 +677,11 @@ curl -X POST "http://localhost:8000/api/estoque/entradas" \
 **Descrição**: Lista o inventário atual de todos os produtos.
 
 **Query Parameters**:
+
 - `estoque_baixo` (bool, opcional): Mostrar apenas estoque baixo (padrão: false)
 
 **Exemplo com cURL**:
+
 ```bash
 curl -X GET "http://localhost:8000/api/estoque/inventario?estoque_baixo=true" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -654,6 +692,7 @@ curl -X GET "http://localhost:8000/api/estoque/inventario?estoque_baixo=true" \
 **Descrição**: Lista produtos com estoque baixo ou zerado.
 
 **Exemplo com cURL**:
+
 ```bash
 curl -X GET "http://localhost:8000/api/estoque/alertas" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -664,11 +703,13 @@ curl -X GET "http://localhost:8000/api/estoque/alertas" \
 **Descrição**: Relatório de fluxo de caixa com controle FIFO.
 
 **Query Parameters**:
+
 - `produto_id` (int, opcional): Filtrar por produto
 - `data_inicio` (date, opcional): Data inicial (YYYY-MM-DD)
 - `data_fim` (date, opcional): Data final (YYYY-MM-DD)
 
 **Exemplo com cURL**:
+
 ```bash
 curl -X GET "http://localhost:8000/api/estoque/fluxo-caixa?data_inicio=2025-08-01&data_fim=2025-08-31" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -679,10 +720,12 @@ curl -X GET "http://localhost:8000/api/estoque/fluxo-caixa?data_inicio=2025-08-0
 **Descrição**: Relatório de rentabilidade por período com análise de lucro.
 
 **Query Parameters**:
+
 - `data_inicio` (date, obrigatório): Data inicial (YYYY-MM-DD)
 - `data_fim` (date, obrigatório): Data final (YYYY-MM-DD)
 
 **Exemplo com cURL**:
+
 ```bash
 curl -X GET "http://localhost:8000/api/estoque/rentabilidade?data_inicio=2025-08-01&data_fim=2025-08-31" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -691,6 +734,7 @@ curl -X GET "http://localhost:8000/api/estoque/rentabilidade?data_inicio=2025-08
 ## 🔄 Fluxo Completo de Gestão
 
 ### **1. Login do Administrador**
+
 ```bash
 curl -X POST "http://localhost:8000/api/auth/login" \
   -H "Content-Type: application/x-www-form-urlencoded" \
@@ -698,6 +742,7 @@ curl -X POST "http://localhost:8000/api/auth/login" \
 ```
 
 ### **2. Criar Entrada de Estoque**
+
 ```bash
 curl -X POST "http://localhost:8000/api/estoque/entradas" \
   -H "Authorization: Bearer {token}" \
@@ -712,6 +757,7 @@ curl -X POST "http://localhost:8000/api/estoque/entradas" \
 ```
 
 ### **3. Separar uma Venda Específica**
+
 ```bash
 curl -X PUT "http://localhost:8000/api/vendas/1/separacao" \
   -H "Authorization: Bearer {token}" \
@@ -725,6 +771,7 @@ curl -X PUT "http://localhost:8000/api/vendas/1/separacao" \
 ```
 
 ### **4. Gerar Relatório de Rentabilidade**
+
 ```bash
 curl -X GET "http://localhost:8000/api/estoque/rentabilidade?data_inicio=2025-08-01&data_fim=2025-08-31" \
   -H "Authorization: Bearer {token}"
@@ -733,6 +780,7 @@ curl -X GET "http://localhost:8000/api/estoque/rentabilidade?data_inicio=2025-08
 ## 📊 Estrutura da Base de Dados
 
 ### **Tabelas Principais**
+
 - `usuarios` - Controle de acesso
 - `clientes` - Cadastro de clientes
 - `produtos` - Catálogo de produtos
@@ -740,6 +788,7 @@ curl -X GET "http://localhost:8000/api/estoque/rentabilidade?data_inicio=2025-08
 - `itens_venda` - Itens dos pedidos
 
 ### **Sistema FIFO**
+
 - `entradas_estoque` - Registro de entradas
 - `estoque_fifo` - Controle FIFO de lotes
 - `inventarios` - Estoque atual
@@ -749,6 +798,7 @@ curl -X GET "http://localhost:8000/api/estoque/rentabilidade?data_inicio=2025-08
 ## 🔑 Autenticação
 
 ### **Login**
+
 ```bash
 curl -X POST "http://localhost:8000/api/auth/login" \
   -H "Content-Type: application/json" \
@@ -756,6 +806,7 @@ curl -X POST "http://localhost:8000/api/auth/login" \
 ```
 
 ### **Usar Token**
+
 ```bash
 curl -X GET "http://localhost:8000/api/clientes/" \
   -H "Authorization: Bearer SEU_TOKEN_JWT"
@@ -764,6 +815,7 @@ curl -X GET "http://localhost:8000/api/clientes/" \
 ## 📈 Exemplos de Uso
 
 ### **1. Criar Cliente**
+
 ```bash
 curl -X POST "http://localhost:8000/api/clientes/" \
   -H "Authorization: Bearer TOKEN" \
@@ -778,6 +830,7 @@ curl -X POST "http://localhost:8000/api/clientes/" \
 ```
 
 ### **2. Registrar Entrada de Estoque**
+
 ```bash
 curl -X POST "http://localhost:8000/api/estoque/entradas" \
   -H "Authorization: Bearer TOKEN" \
@@ -792,6 +845,7 @@ curl -X POST "http://localhost:8000/api/estoque/entradas" \
 ```
 
 ### **3. Criar Venda**
+
 ```bash
 curl -X POST "http://localhost:8000/api/vendas/" \
   -H "Authorization: Bearer TOKEN" \
@@ -811,6 +865,7 @@ curl -X POST "http://localhost:8000/api/vendas/" \
 ```
 
 ### **4. Separar Pedido (com cálculo FIFO automático)**
+
 ```bash
 curl -X PUT "http://localhost:8000/api/vendas/1/separacao" \
   -H "Authorization: Bearer TOKEN" \
@@ -826,6 +881,7 @@ curl -X PUT "http://localhost:8000/api/vendas/1/separacao" \
 ```
 
 ### **5. Relatório de Rentabilidade**
+
 ```bash
 curl -X GET "http://localhost:8000/api/estoque/rentabilidade?data_inicio=2025-08-01&data_fim=2025-08-31" \
   -H "Authorization: Bearer TOKEN"
@@ -834,6 +890,7 @@ curl -X GET "http://localhost:8000/api/estoque/rentabilidade?data_inicio=2025-08
 ## ✅ Funcionalidades Automáticas
 
 ### **O sistema faz automaticamente**:
+
 - ✅ **Sistema FIFO**: Primeiro a entrar, primeiro a sair
 - ✅ **Atualização de inventário**: Ao criar entradas
 - ✅ **Cálculo de custos**: Baseado no FIFO para vendas
@@ -842,6 +899,7 @@ curl -X GET "http://localhost:8000/api/estoque/rentabilidade?data_inicio=2025-08
 - ✅ **Rastreabilidade**: Histórico completo de movimentações
 
 ### **Validações Automáticas**:
+
 - ✅ Produtos existem antes de criar entradas
 - ✅ Quantidades são positivas
 - ✅ Preços de custo são válidos
@@ -851,22 +909,26 @@ curl -X GET "http://localhost:8000/api/estoque/rentabilidade?data_inicio=2025-08
 ## 🎯 Casos de Uso Práticos
 
 ### **Cenário 1: Separação Normal**
+
 - Cliente pediu 3kg de tomate
 - Funcionário pesou e deu 2.8kg
 - Sistema aceita e cobra pelo peso real
 
 ### **Cenário 2: Estoque Insuficiente**
+
 - Cliente pediu 5kg de batata
 - Estoque só tem 3kg disponível
 - Sistema bloqueia e mostra erro detalhado
 
 ### **Cenário 3: Controle de Estoque Baixo**
+
 1. Sistema monitora estoques continuamente
 2. Quando quantidade < estoque_mínimo → gera alerta
 3. Endpoint `/alertas` mostra produtos críticos
 4. Admin pode tomar ação preventiva
 
 ### **Cenário 4: Análise de Rentabilidade**
+
 1. Admin consulta rentabilidade mensal
 2. Sistema calcula lucro usando custos FIFO
 3. Identifica produtos mais/menos rentáveis
@@ -875,6 +937,7 @@ curl -X GET "http://localhost:8000/api/estoque/rentabilidade?data_inicio=2025-08
 ## 🔍 Monitoramento e Logs
 
 ### **Logs da Aplicação**
+
 ```bash
 # Logs em tempo real
 docker compose logs -f api
@@ -884,12 +947,14 @@ docker compose logs api --tail=100
 ```
 
 ### **Logs do Banco**
+
 ```bash
 # Ver logs do MySQL
 docker compose logs mysql
 ```
 
 ### **Health Check**
+
 ```bash
 # Verificar se API está respondendo
 curl http://localhost:8000/
@@ -917,6 +982,7 @@ curl http://localhost:8000/docs
 ## 🧪 Testes
 
 ### **Teste Manual via Swagger**
+
 1. Acesse http://localhost:8000/docs
 2. Clique em "Authorize"
 3. Faça login via `/auth/login`
@@ -924,6 +990,7 @@ curl http://localhost:8000/docs
 5. Teste os endpoints interativamente
 
 ### **Teste via cURL**
+
 ```bash
 # Script de teste completo
 chmod +x test_api.sh
@@ -935,6 +1002,7 @@ chmod +x test_api.sh
 ### **Problemas Comuns**
 
 #### **1. Erro de conexão com MySQL**
+
 ```bash
 # Verificar se MySQL está rodando
 docker compose ps mysql
@@ -947,6 +1015,7 @@ docker compose logs mysql
 ```
 
 #### **2. Erro de build do Docker**
+
 ```bash
 # Limpar cache e rebuild
 docker system prune -f
@@ -955,6 +1024,7 @@ docker compose up -d
 ```
 
 #### **3. Problemas de permissão**
+
 ```bash
 # No Windows PowerShell
 # Verificar se usuário tem permissões Docker
@@ -962,6 +1032,7 @@ whoami
 ```
 
 #### **4. Porta já em uso**
+
 ```bash
 # Verificar o que está usando a porta 8000
 netstat -an | findstr :8000
@@ -971,6 +1042,7 @@ docker compose down
 ```
 
 ### **Reset Completo**
+
 ```bash
 # Parar tudo e limpar dados
 docker compose down -v
@@ -1018,6 +1090,7 @@ alembic upgrade head
 ## 📋 Roadmap
 
 ### **Próximas Funcionalidades**
+
 - [ ] Relatórios em PDF
 - [ ] Integração com WhatsApp
 - [ ] Dashboard web frontend
@@ -1026,6 +1099,7 @@ alembic upgrade head
 - [ ] Notificações push
 
 ### **Melhorias Técnicas**
+
 - [ ] Testes automatizados
 - [ ] CI/CD pipeline
 - [ ] Monitoramento APM
@@ -1038,7 +1112,7 @@ alembic upgrade head
 Para documentação detalhada de todos os endpoints, consulte o arquivo [`API_DOCUMENTATION.md`](API_DOCUMENTATION.md) que contém:
 
 - 🔐 Todos os endpoints de autenticação
-- 👥 CRUD completo de clientes  
+- 👥 CRUD completo de clientes
 - 🥕 Gestão de produtos com upload de imagens
 - 💰 Sistema completo de vendas
 - 📦 Controle de estoque e inventário
@@ -1053,5 +1127,6 @@ Este projeto está licenciado sob a [MIT License](LICENSE).
 ---
 
 **Desenvolvido com ❤️ para otimizar a gestão de vendas no CEASA**
-#   S i s t e m a _ V e n d a s _ C e a s a  
+#   S i s t e m a * V e n d a s * C e a s a 
+ 
  
