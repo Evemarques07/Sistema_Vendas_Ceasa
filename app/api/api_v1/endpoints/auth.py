@@ -15,13 +15,15 @@ router = APIRouter()
 @router.post("/login", response_model=dict)
 async def login(login_data: Login, db: Session = Depends(get_db)):
     """Login endpoint"""
-    # Find user by email
-    user = db.query(Usuario).filter(Usuario.email == login_data.email).first()
+    # Buscar usuário por email ou cpf/cnpj
+    user = db.query(Usuario).filter(
+        (Usuario.email == login_data.login) | (Usuario.cpf_ou_cnpj == login_data.login)
+    ).first()
     
     if not user or not verify_password(login_data.senha, user.senha_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos",
+            detail="Login ou senha incorretos",
             headers={"WWW-Authenticate": "Bearer"},
         )
     

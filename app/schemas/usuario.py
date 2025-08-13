@@ -16,13 +16,14 @@ class TokenData(BaseModel):
     email: Optional[str] = None
 
 class Login(BaseModel):
-    email: EmailStr
+    login: str  # Pode ser email ou cpf/cnpj
     senha: str
 
 # Schemas base para Usuario
 class UsuarioBase(BaseModel):
     nome: str
     email: EmailStr
+    cpf_ou_cnpj: str
     tipo: TipoUsuario
 
 class UsuarioCreate(UsuarioBase):
@@ -31,6 +32,7 @@ class UsuarioCreate(UsuarioBase):
 class UsuarioUpdate(BaseModel):
     nome: Optional[str] = None
     email: Optional[EmailStr] = None
+    cpf_ou_cnpj: Optional[str] = None
     tipo: Optional[TipoUsuario] = None
     ativo: Optional[bool] = None
 
