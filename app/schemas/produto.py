@@ -13,6 +13,7 @@ class ProdutoBase(BaseModel):
     tipo_medida: TipoMedida = TipoMedida.UNIDADE
     estoque_minimo: Decimal = Field(default=0, ge=0)
     ativo: bool = True
+    imagem: Optional[str] = None  # URL da imagem no Google Drive
 
 class ProdutoCreate(ProdutoBase):
     pass

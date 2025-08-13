@@ -95,7 +95,8 @@ async def criar_produto(
         preco_venda=produto.preco_venda,
         tipo_medida=produto.tipo_medida,
         estoque_minimo=produto.estoque_minimo,
-        ativo=produto.ativo if hasattr(produto, 'ativo') else True
+        ativo=produto.ativo if hasattr(produto, 'ativo') else True,
+        imagem=getattr(produto, 'imagem', None)
     )
     db.add(db_produto)
     db.commit()
@@ -152,40 +153,26 @@ async def atualizar_produto(
 @router.put("/{produto_id}/imagem", response_model=dict)
 async def atualizar_imagem_produto(
     produto_id: int,
-    imagem: UploadFile = File(...),
+    imagem_url: str,
     current_user: Usuario = Depends(get_current_admin_user),
     db: Session = Depends(get_db)
 ):
-    """Atualizar imagem do produto (apenas administradores)"""
+    """Atualizar apenas a URL da imagem do produto (apenas administradores)"""
     produto = db.query(Produto).filter(Produto.id == produto_id).first()
     if not produto:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Produto não encontrado"
         )
-    
-    try:
-        # Delete old image if exists
-        if produto.imagem:
-            delete_image_from_gdrive(produto.imagem)
-        
-        # Upload new image
-        imagem_url = await process_and_upload_image(imagem)
-        produto.imagem = imagem_url
-        
-        db.commit()
-        db.refresh(produto)
-        
-        return {
-            "data": ProdutoSchema.from_orm(produto),
-            "message": "Imagem do produto atualizada com sucesso",
-            "success": True
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Erro ao fazer upload da imagem: {str(e)}"
-        )
+    # Atualiza a URL da imagem
+    produto.imagem = imagem_url
+    db.commit()
+    db.refresh(produto)
+    return {
+        "data": ProdutoSchema.from_orm(produto),
+        "message": "Imagem do produto atualizada com sucesso",
+        "success": True
+    }
 
 @router.delete("/{produto_id}", response_model=dict)
 async def excluir_produto(

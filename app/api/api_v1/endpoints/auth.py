@@ -1,3 +1,4 @@
+#api_v1/endpoints/auth.p
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -5,10 +6,12 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import verify_password, create_access_token
-from app.core.deps import get_current_user
+from app.core.security import verify_password, create_access_token, get_password_hash
+from app.core.deps import get_current_user, get_current_admin_user
 from app.models.usuario import Usuario
-from app.schemas.usuario import Login, LoginResponse, Usuario as UsuarioSchema
+from app.schemas.usuario import Login, LoginResponse, Usuario as UsuarioSchema, UsuarioBase, TipoUsuario
+from typing import Optional
+
 
 router = APIRouter()
 

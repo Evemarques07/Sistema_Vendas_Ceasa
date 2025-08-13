@@ -1,3 +1,4 @@
+#models/usuario.py
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum as SQLEnum
 from sqlalchemy.sql import func
 

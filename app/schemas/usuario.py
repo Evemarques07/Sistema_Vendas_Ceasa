@@ -1,7 +1,13 @@
+#schemas/usuario.py
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 from enum import Enum
+
+class FuncionarioCreate(BaseModel):
+    nome: str
+    cpf_ou_cnpj: str
+    email: Optional[str] = None
 
 class TipoUsuario(str, Enum):
     ADMINISTRADOR = "administrador"
@@ -22,7 +28,7 @@ class Login(BaseModel):
 # Schemas base para Usuario
 class UsuarioBase(BaseModel):
     nome: str
-    email: EmailStr
+    email: Optional[EmailStr] = None
     cpf_ou_cnpj: str
     tipo: TipoUsuario
 
@@ -49,3 +55,5 @@ class Usuario(UsuarioBase):
 class LoginResponse(BaseModel):
     user: Usuario
     token: str
+
+    
