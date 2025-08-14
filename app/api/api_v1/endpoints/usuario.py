@@ -14,9 +14,21 @@ from typing import Optional
 
 
 router = APIRouter()
-#usar FuncionarioCreate
 
-#mandar sempre um email diferente
+#endpoint para listar usuarios
+@router.get("/funcionarios", response_model=dict)
+async def listar_funcionarios(
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_admin_user)
+):
+    """Lista todos os funcionários"""
+    funcionarios = db.query(Usuario).filter(Usuario.tipo == TipoUsuario.FUNCIONARIO).all()
+    return {
+    "data": [UsuarioSchema.from_orm(f) for f in funcionarios],
+    "message": "Funcionários listados com sucesso",
+    "success": True
+    }
+
 @router.post("/funcionarios", response_model=dict)
 async def criar_funcionario(
     funcionario: FuncionarioCreate,
@@ -142,7 +154,8 @@ async def alterar_nome_funcionario(
     funcionario_id: int,
     novo_nome: str,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_admin_user)
+    #o funcionario tambem pode alterar seu proprio nome
+    current_user: Usuario = Depends(get_current_user)
 ):
     """Altera o nome de um funcionário"""
     funcionario = db.query(Usuario).filter(Usuario.id == funcionario_id).first()
