@@ -54,7 +54,8 @@ class Venda(VendaBase):
     data_venda: datetime
     data_separacao: Optional[datetime] = None
     funcionario_separacao: Optional[dict] = None  # {"id": int, "nome": str, "email": str}
-    cliente: Cliente
+    cliente_id: Optional[int] = None
+    cliente: Optional[Cliente] = None
     itens: List[ItemVenda]
     criado_em: datetime
     atualizado_em: Optional[datetime] = None

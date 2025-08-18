@@ -354,23 +354,23 @@ async def listar_inventario(
 ):
     """Listar inventário atual com filtros e paginação"""
     query = db.query(Inventario).options(joinedload(Inventario.produto))
-    
+
     # Apply filters
     if produto_id:
         query = query.filter(Inventario.produto_id == produto_id)
-    
+
     if estoque_baixo:
-        # Show only products where current quantity is less than minimum stock
+        # Só faz join uma vez!
         query = query.join(Produto).filter(
             Inventario.quantidade_atual < Produto.estoque_minimo
         )
-    
+        inventarios = query.order_by(Produto.nome).offset(skip).limit(limit).all()
+    else:
+        inventarios = query.join(Produto).order_by(Produto.nome).offset(skip).limit(limit).all()
+
     # Get total count
     total = query.count()
-    
-    # Apply pagination and order by product name
-    inventarios = query.join(Produto).order_by(Produto.nome).offset(skip).limit(limit).all()
-    
+
     return {
         "data": {
             "items": [InventarioSchema.from_orm(inventario) for inventario in inventarios],
@@ -392,8 +392,10 @@ async def atualizar_inventario(
     current_user: Usuario = Depends(get_current_admin_user),
     db: Session = Depends(get_db)
 ):
-    """Atualizar quantidade de inventário manualmente (apenas administradores)"""
-    # Verify product exists
+    """Atualizar quantidade de inventário manualmente (apenas administradores) e recalcular valor_total pelo FIFO"""
+    from app.models.estoque import EstoqueFifo
+
+    # Verifica se o produto existe
     produto = db.query(Produto).filter(Produto.id == produto_id).first()
     if not produto:
         raise HTTPException(
@@ -401,17 +403,35 @@ async def atualizar_inventario(
             detail="Produto não encontrado"
         )
     
-    # Get or create inventory
+    # Busca ou cria o inventário
     inventario = db.query(Inventario).filter(Inventario.produto_id == produto_id).first()
     if not inventario:
         inventario = Inventario(produto_id=produto_id)
         db.add(inventario)
     
-    # Update inventory
+    # Atualiza inventário
     inventario.quantidade_atual = inventario_data.quantidade_atual
     inventario.observacoes = inventario_data.observacoes
     inventario.data_ultima_atualizacao = datetime.utcnow()
-    
+
+    # Recalcula valor_total pelo FIFO
+    entradas_fifo = db.query(EstoqueFifo).filter(
+        EstoqueFifo.produto_id == produto_id,
+        EstoqueFifo.quantidade_restante > 0
+    ).order_by(EstoqueFifo.id).all()
+
+    quantidade_restante = inventario.quantidade_atual
+    valor_total = 0
+
+    for entrada in entradas_fifo:
+        usar = min(entrada.quantidade_restante, quantidade_restante)
+        valor_total += Decimal(usar) * Decimal(entrada.preco_custo_unitario)
+        quantidade_restante -= usar
+        if quantidade_restante <= 0:
+            break
+
+    inventario.valor_total = valor_total
+
     db.commit()
     db.refresh(inventario)
     

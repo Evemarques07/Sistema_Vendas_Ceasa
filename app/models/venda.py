@@ -9,7 +9,7 @@ class Venda(Base):
     __tablename__ = "vendas"
 
     id = Column(Integer, primary_key=True, index=True)
-    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False)
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=True)
     funcionario_separacao_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     total_venda = Column(DECIMAL(10, 2), nullable=False)
     situacao_pedido = Column(SQLEnum(SituacaoPedido), default=SituacaoPedido.A_SEPARAR)

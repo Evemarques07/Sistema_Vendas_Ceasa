@@ -119,7 +119,7 @@ class FluxoCaixaService:
             quantidade=item.quantidade_real,
             preco_unitario=item.valor_unitario,
             valor_total=receita_total,
-            observacoes=f"Venda #{venda.id} - Cliente: {venda.cliente.nome}"
+            observacoes=f"Venda #{venda.id} - Cliente: {venda.cliente.nome if venda.cliente else 'Balcão'}"
         )
         self.db.add(movimentacao)
         

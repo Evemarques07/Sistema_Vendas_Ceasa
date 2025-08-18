@@ -1,8 +1,9 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.orm import Session
 from decimal import Decimal
 
+from datetime import datetime
 from app.core.database import get_db
 from app.core.deps import get_current_user, get_current_admin_user
 from app.models.venda import Venda, ItemVenda
@@ -392,6 +393,104 @@ async def criar_venda(
     return {
         "data": VendaSchema.from_orm(db_venda),
         "message": "Venda criada com sucesso",
+        "success": True
+    }
+
+@router.post("/venda-rapida", response_model=dict)
+async def venda_rapida(
+    produtos: list = Body(..., example=[
+        {"produto_id": 1, "quantidade": 2.5, "tipo_medida": "KG"},
+        {"produto_id": 2, "quantidade": 1, "tipo_medida": "UNIDADE"}
+    ]),
+    cliente_id: Optional[int] = Body(None, description="ID do cliente (opcional)"),
+    observacoes: Optional[str] = Body(None),
+    current_user: Usuario = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Realiza uma venda rápida (balcão), podendo ou não identificar o cliente.
+    Deduz do estoque e faz os cálculos FIFO normalmente.
+    """
+    total_venda = Decimal('0.00')
+    itens_venda = []
+
+    # Verifica cliente se informado
+    cliente = None
+    if cliente_id:
+        cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
+        if not cliente:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cliente não encontrado"
+            )
+
+    # Verifica produtos e estoque
+    for item in produtos:
+        produto = db.query(Produto).filter(Produto.id == item["produto_id"]).first()
+        if not produto:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Produto com ID {item['produto_id']} não encontrado"
+            )
+        inventario = db.query(Inventario).filter(Inventario.produto_id == produto.id).first()
+        if not inventario or inventario.quantidade_atual < Decimal(str(item["quantidade"])):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Estoque insuficiente para o produto '{produto.nome}'"
+            )
+        valor_unitario = produto.preco_venda
+        valor_total = Decimal(str(item["quantidade"])) * valor_unitario
+        total_venda += valor_total
+        itens_venda.append({
+            "produto_id": produto.id,
+            "quantidade": Decimal(str(item["quantidade"])),
+            "tipo_medida": item["tipo_medida"],
+            "valor_unitario": valor_unitario,
+            "valor_total_produto": valor_total
+        })
+
+    # Cria a venda
+    db_venda = Venda(
+        cliente_id=cliente.id if cliente else None,
+        total_venda=total_venda,
+        observacoes=observacoes
+    )
+    db.add(db_venda)
+    db.flush()  # Para pegar o ID
+
+    # Cria os itens da venda e deduz do estoque
+    for item in itens_venda:
+        db_item = ItemVenda(
+            venda_id=db_venda.id,
+            produto_id=item["produto_id"],
+            quantidade=item["quantidade"],
+            tipo_medida=item["tipo_medida"],
+            valor_unitario=item["valor_unitario"],
+            valor_total_produto=item["valor_total_produto"],
+            quantidade_real=item["quantidade"]
+        )
+        db.add(db_item)
+        # Diminui do estoque
+        inventario = db.query(Inventario).filter(Inventario.produto_id == item["produto_id"]).first()
+        inventario.quantidade_atual -= item["quantidade"]
+        inventario.data_ultima_atualizacao = datetime.utcnow()
+
+    # Marca venda como separada e paga (venda balcão)
+    db_venda.situacao_pedido = SituacaoPedido.SEPARADO
+    db_venda.situacao_pagamento = SituacaoPagamento.PAGO
+    db_venda.funcionario_separacao_id = current_user.id
+    db_venda.data_separacao = datetime.utcnow()
+
+    db.commit()
+    db.refresh(db_venda)
+
+    # Processa FIFO e lucro bruto
+    fluxo_service = FluxoCaixaService(db)
+    fluxo_service.processar_venda_separada(db_venda)
+
+    return {
+        "data": VendaSchema.from_orm(db_venda),
+        "message": "Venda rápida realizada com sucesso",
         "success": True
     }
 
