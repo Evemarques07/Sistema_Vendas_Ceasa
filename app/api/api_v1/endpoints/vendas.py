@@ -3,11 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.orm import Session
 from decimal import Decimal
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.core.database import get_db
 from app.core.deps import get_current_user, get_current_admin_user
 from app.models.venda import Venda, ItemVenda
 from app.core.enums import SituacaoPedido, SituacaoPagamento
+from app.models.estoque import LucroBruto, MovimentacaoCaixa
 from app.models.cliente import Cliente
 from app.models.produto import Produto
 from app.models.usuario import Usuario
@@ -694,5 +695,57 @@ async def marcar_como_pago(
     return {
         "data": VendaSchema.from_orm(venda),
         "message": "Venda marcada como paga",
+        "success": True
+    }
+
+@router.delete("/{venda_id}", response_model=dict)
+async def excluir_venda(
+    venda_id: int,
+    current_user: Usuario = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Exclui uma venda e retorna os produtos ao estoque.
+    Só permite excluir vendas criadas há menos de 24h.
+    """
+    
+
+    venda = db.query(Venda).filter(Venda.id == venda_id).first()
+    if not venda:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Venda não encontrada"
+        )
+
+    # Verifica se a venda foi criada há menos de 24h
+    if (datetime.utcnow() - venda.data_venda).total_seconds() > 86400:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Só é possível excluir vendas criadas há menos de 24 horas"
+        )
+
+    # Retorna os produtos ao estoque
+    itens = db.query(ItemVenda).filter(ItemVenda.venda_id == venda_id).all()
+    for item in itens:
+        inventario = db.query(Inventario).filter(Inventario.produto_id == item.produto_id).first()
+        if inventario:
+            quantidade = item.quantidade_real if item.quantidade_real is not None else item.quantidade
+            inventario.quantidade_atual += quantidade
+            inventario.data_ultima_atualizacao = datetime.utcnow()
+
+    # Exclui registros de lucro bruto relacionados à venda
+    db.query(LucroBruto).filter(LucroBruto.venda_id == venda_id).delete()
+
+    # Exclui registros de movimentação de caixa relacionados à venda
+    db.query(MovimentacaoCaixa).filter(MovimentacaoCaixa.venda_id == venda_id).delete(synchronize_session=False)
+
+    # Exclui os itens e a venda
+    for item in itens:
+        db.delete(item)
+    db.delete(venda)
+    db.commit()
+
+    return {
+        "message": "Venda excluída e produtos retornados ao estoque com sucesso.",
         "success": True
     }
