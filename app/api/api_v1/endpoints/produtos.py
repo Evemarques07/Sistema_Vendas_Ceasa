@@ -1,7 +1,8 @@
+import os
+from fastapi.responses import FileResponse
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
 from sqlalchemy.orm import Session
-
 from app.core.database import get_db
 from app.core.deps import get_current_user, get_current_admin_user
 from app.models.produto import Produto
@@ -9,6 +10,7 @@ from app.models.usuario import Usuario
 from app.schemas.produto import Produto as ProdutoSchema, ProdutoCreate, ProdutoUpdate
 from app.utils.upload import process_and_upload_image, delete_image_from_gdrive
 
+PASTA_IMAGENS = "public"
 router = APIRouter()
 
 @router.get("/", response_model=dict)
@@ -243,3 +245,51 @@ async def excluir_produto(
         "message": "Produto excluído com sucesso",
         "success": True
     }
+
+@router.post("/imagem/", response_model=dict)
+async def upload_imagem_produto(
+    produto_id: int = Form(...),
+    file: UploadFile = File(...),
+    current_user: Usuario = Depends(get_current_admin_user)
+):
+    """Faz upload de uma imagem para um produto e salva em /public/{produto_id}.ext"""
+    extensao = os.path.splitext(file.filename)[1].lower()
+    if extensao not in [".jpg", ".jpeg", ".png"]:
+        raise HTTPException(status_code=400, detail="Formato de imagem não suportado.")
+    if not os.path.exists(PASTA_IMAGENS):
+        os.makedirs(PASTA_IMAGENS)
+    caminho = os.path.join(PASTA_IMAGENS, f"{produto_id}{extensao}")
+    with open(caminho, "wb") as buffer:
+        buffer.write(await file.read())
+    return {
+        "message": "Imagem enviada com sucesso",
+        "filename": f"{produto_id}{extensao}",
+        "success": True
+    }
+
+@router.get("/imagem/{produto_id}")
+async def get_imagem_produto(produto_id: int):
+    """Retorna a imagem do produto salva em /public/{produto_id}.ext"""
+    for ext in [".jpg", ".jpeg", ".png"]:
+        caminho = os.path.join(PASTA_IMAGENS, f"{produto_id}{ext}")
+        if os.path.exists(caminho):
+            return FileResponse(caminho, media_type=f"image/{ext.replace('.', '')}")
+    raise HTTPException(status_code=404, detail="Imagem não encontrada")
+
+@router.get("/imagens/listar", response_model=dict, dependencies=[])
+async def listar_imagens():
+    """Lista todas as imagens de produtos na pasta /public"""
+    if not os.path.exists(PASTA_IMAGENS):
+        return {"data": [], "message": "Nenhuma imagem encontrada", "success": True}
+    arquivos = [f for f in os.listdir(PASTA_IMAGENS) if f.lower().endswith((".jpg", ".jpeg", ".png"))]
+    return {"data": arquivos, "message": "Imagens listadas com sucesso", "success": True}
+
+@router.delete("/imagem/{produto_id}", response_model=dict)
+async def deletar_imagem_produto(produto_id: int, current_user: Usuario = Depends(get_current_admin_user)):
+    """Deleta a imagem do produto na pasta /public/{produto_id}.ext"""
+    for ext in [".jpg", ".jpeg", ".png"]:
+        caminho = os.path.join(PASTA_IMAGENS, f"{produto_id}{ext}")
+        if os.path.exists(caminho):
+            os.remove(caminho)
+            return {"message": "Imagem deletada com sucesso", "success": True}
+    raise HTTPException(status_code=404, detail="Imagem não encontrada")
