@@ -36,7 +36,7 @@ async def criar_funcionario(
     current_user: Usuario = Depends(get_current_admin_user)
 ):
     """Cria um novo funcionário"""
-    # Verifica se já existe um usuário com o mesmo CPF/CNPJ ou email
+    # Verifica se já existe um usuário com o mesmo CPF/CNPJ
     usuario_existente = db.query(Usuario).filter(
         (Usuario.cpf_ou_cnpj == funcionario.cpf_ou_cnpj)
     ).first()
@@ -49,7 +49,11 @@ async def criar_funcionario(
     # Cria o hash da senha padrão
     senha_hash = get_password_hash("func123")
 
+    # Garante que o email nunca será None
     email = getattr(funcionario, "email", None)
+    if not email:
+        email = f"funcionario_{funcionario.cpf_ou_cnpj}@exemplo.com"
+
     novo_usuario = Usuario(
         nome=funcionario.nome,
         cpf_ou_cnpj=funcionario.cpf_ou_cnpj,
@@ -62,13 +66,6 @@ async def criar_funcionario(
     db.add(novo_usuario)
     db.commit()
     db.refresh(novo_usuario)
-
-    # Se o email não for enviado, gera um email único baseado no CPF/CNPJ
-    if not email:
-        email = f"funcionario_{funcionario.cpf_ou_cnpj}@exemplo.com"
-        novo_usuario.email = email
-        db.commit()
-        db.refresh(novo_usuario)
 
     return {
         "data": {
