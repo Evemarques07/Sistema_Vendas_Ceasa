@@ -5,6 +5,7 @@ services:
     container_name: vendas-ceasa-mysql
     restart: unless-stopped
     environment:
+      TZ: America/Sao_Paulo
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
