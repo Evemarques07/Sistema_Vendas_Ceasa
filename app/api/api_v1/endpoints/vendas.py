@@ -474,13 +474,13 @@ async def venda_rapida(
         # Diminui do estoque
         inventario = db.query(Inventario).filter(Inventario.produto_id == item["produto_id"]).first()
         inventario.quantidade_atual -= item["quantidade"]
-        inventario.data_ultima_atualizacao = datetime.utcnow()
+        inventario.data_ultima_atualizacao = now_brazil()
 
     # Marca venda como separada e paga (venda balcão)
     db_venda.situacao_pedido = SituacaoPedido.SEPARADO
     db_venda.situacao_pagamento = SituacaoPagamento.PAGO
     db_venda.funcionario_separacao_id = current_user.id
-    db_venda.data_separacao = datetime.utcnow()
+    db_venda.data_separacao = now_brazil()
 
     db.commit()
     db.refresh(db_venda)
@@ -589,13 +589,13 @@ async def atualizar_separacao(
         
         inventario.quantidade_atual -= quantidade_real
         from datetime import datetime
-        inventario.data_ultima_atualizacao = datetime.utcnow()
+        inventario.data_ultima_atualizacao = now_brazil()
     
     # Atualizar venda com informações de separação
     venda.total_venda = novo_total
     venda.situacao_pedido = SituacaoPedido.SEPARADO
     venda.funcionario_separacao_id = current_user.id
-    venda.data_separacao = datetime.utcnow()
+    venda.data_separacao = now_brazil()
     
     db.commit()
     db.refresh(venda)
@@ -652,7 +652,7 @@ async def cancelar_separacao(
             if inventario:
                 inventario.quantidade_atual += item.quantidade_real
                 from datetime import datetime
-                inventario.data_ultima_atualizacao = datetime.utcnow()
+                inventario.data_ultima_atualizacao = now_brazil()
             
             # Resetar quantidade real
             item.quantidade_real = None
@@ -731,7 +731,7 @@ async def excluir_venda(
         if inventario:
             quantidade = item.quantidade_real if item.quantidade_real is not None else item.quantidade
             inventario.quantidade_atual += quantidade
-            inventario.data_ultima_atualizacao = datetime.utcnow()
+            inventario.data_ultima_atualizacao = now_brazil()
 
     # Exclui registros de lucro bruto relacionados à venda
     db.query(LucroBruto).filter(LucroBruto.venda_id == venda_id).delete()
