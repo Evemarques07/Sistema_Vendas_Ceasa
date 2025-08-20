@@ -22,11 +22,12 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["https://alanceasavendas.web.app","https://www.evertonmarques.com.br"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Mount static files
 if not os.path.exists(settings.UPLOAD_FOLDER):
