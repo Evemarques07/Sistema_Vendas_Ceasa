@@ -557,6 +557,12 @@ async def obter_fluxo_caixa(
         data_fim=data_fim_dt
     )
     
+    movimentacoes_ordenadas = sorted(
+        relatorio["movimentacoes"],
+        key=lambda mov: mov.data_movimentacao,
+        reverse=True
+    )
+
     return {
         "data": {
             "total_entradas": relatorio["total_entradas"],
@@ -576,7 +582,7 @@ async def obter_fluxo_caixa(
                     "data": mov.data_movimentacao,
                     "observacoes": mov.observacoes
                 }
-                for mov in relatorio["movimentacoes"]
+                for mov in movimentacoes_ordenadas
             ]
         },
         "message": "Relatório de fluxo de caixa gerado com sucesso",
