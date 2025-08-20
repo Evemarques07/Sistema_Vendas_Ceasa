@@ -21,7 +21,7 @@ from app.schemas.venda import (
     SeparacaoUpdate
 )
 from app.services.fluxo_caixa import FluxoCaixaService
-
+#utcnow
 router = APIRouter()
 
 @router.get("/", response_model=dict)
@@ -718,7 +718,7 @@ async def excluir_venda(
         )
 
     # Verifica se a venda foi criada há menos de 24h
-    if (datetime.utcnow() - venda.data_venda).total_seconds() > 86400:
+    if (now_brazil() - venda.data_venda).total_seconds() > 86400:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Só é possível excluir vendas criadas há menos de 24 horas"
