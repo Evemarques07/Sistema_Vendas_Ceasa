@@ -41,18 +41,6 @@ def init_db():
             db.add(admin_user)
             print("✅ Usuário ADMIN criado - Email: admin@ceasa.com, Senha: admin123")
             
-            # Criar usuário funcionário/operador
-            funcionario_user = Usuario(
-                nome="Funcionário Operador",
-                email="funcionario@ceasa.com",
-                senha_hash=get_password_hash("func123"),
-                tipo=TipoUsuario.FUNCIONARIO,
-                ativo=True
-            )
-            db.add(funcionario_user)
-            print("✅ Usuário FUNCIONÁRIO criado - Email: funcionario@ceasa.com, Senha: func123")
-        else:
-            print("ℹ️ Usuários já existem no sistema")
         
         # Salvar todas as mudanças
         db.commit()
