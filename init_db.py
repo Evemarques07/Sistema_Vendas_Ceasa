@@ -34,6 +34,7 @@ def init_db():
             admin_user = Usuario(
                 nome="Administrador",
                 email="admin@ceasa.com",
+                cpf_ou_cnpj="12345678910",
                 senha_hash=get_password_hash("admin123"),
                 tipo=TipoUsuario.ADMINISTRADOR,
                 ativo=True

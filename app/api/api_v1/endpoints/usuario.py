@@ -15,6 +15,75 @@ from typing import Optional
 
 router = APIRouter()
 
+#endpoint para verificar se existe administrador cadastrado sem token
+@router.get("/administradores", response_model=dict)
+async def verificar_administrador(
+    db: Session = Depends(get_db)
+):
+    """Verifica se existe um administrador cadastrado"""
+    administrador = db.query(Usuario).filter(
+        (Usuario.tipo == TipoUsuario.ADMINISTRADOR)
+    ).first()
+    if not administrador:
+        return {
+            "data": None,
+            "message": "Nenhum administrador cadastrado",
+            "success": False
+        }
+    return {
+        "data": {
+            "nome": administrador.nome,
+            "tipo": administrador.tipo,
+        },
+        "message": "Administrador encontrado",
+        "success": True
+    }
+
+#endpoint para criar administrador, não permitir mais de um administrador
+@router.post("/administradores", response_model=dict)
+async def criar_administrador(
+    administrador: UsuarioBase,
+    db: Session = Depends(get_db)
+):
+    """Cria um novo administrador"""
+    # Verifica se já existe um administrador
+    administrador_existente = db.query(Usuario).filter(
+        (Usuario.tipo == TipoUsuario.ADMINISTRADOR)
+    ).first()
+    if administrador_existente:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Já existe um administrador cadastrado"
+        )
+
+    # Cria o hash da senha padrão
+    senha_hash = get_password_hash("admin123")
+
+    novo_usuario = Usuario(
+        nome=administrador.nome,
+        cpf_ou_cnpj=administrador.cpf_ou_cnpj,
+        email=administrador.email,
+        senha_hash=senha_hash,
+        tipo=TipoUsuario.ADMINISTRADOR,
+        ativo=True
+    )
+
+    db.add(novo_usuario)
+    db.commit()
+    db.refresh(novo_usuario)
+
+    return {
+        "data": {
+            "id": novo_usuario.id,
+            "nome": novo_usuario.nome,
+            "cpf_ou_cnpj": novo_usuario.cpf_ou_cnpj,
+            "email": novo_usuario.email,
+            "tipo": novo_usuario.tipo,
+        },
+        "message": "Administrador cadastrado com sucesso",
+        "success": True
+    }
+
 #endpoint para listar usuarios
 @router.get("/funcionarios", response_model=dict)
 async def listar_funcionarios(
