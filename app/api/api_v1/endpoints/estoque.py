@@ -596,24 +596,22 @@ async def obter_rentabilidade(
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Obter relatório de rentabilidade por período"""
-    from app.models.estoque import LucroBruto, MovimentacaoCaixa, TipoMovimentacao
-    
+    """Obter relatório de rentabilidade por período (novo modelo, só vendas)"""
+    from app.models.venda import ItemVenda, Venda
+
     data_inicio_dt = datetime.combine(data_inicio, datetime.min.time())
     data_fim_dt = datetime.combine(data_fim, datetime.max.time())
-    
-    # Buscar lucros brutos do período
-    lucros = db.query(LucroBruto).filter(
-        and_(
-            LucroBruto.data_calculo >= data_inicio_dt,
-            LucroBruto.data_calculo <= data_fim_dt
-        )
+
+    # Buscar itens de venda do período
+    itens = db.query(ItemVenda).join(Venda).filter(
+        Venda.data_venda >= data_inicio_dt,
+        Venda.data_venda <= data_fim_dt
     ).all()
-    
+
     # Agrupar por produto
     produtos_rentabilidade = {}
-    for lucro in lucros:
-        produto_id = lucro.produto_id
+    for item in itens:
+        produto_id = item.produto_id
         if produto_id not in produtos_rentabilidade:
             produto = db.query(Produto).filter(Produto.id == produto_id).first()
             produtos_rentabilidade[produto_id] = {
@@ -628,27 +626,26 @@ async def obter_rentabilidade(
                 "lucro_bruto": Decimal('0'),
                 "vendas": 0
             }
-        
         dados = produtos_rentabilidade[produto_id]
-        dados["quantidade_vendida"] += lucro.quantidade_vendida
-        dados["receita_total"] += lucro.receita_total
-        dados["custo_total"] += lucro.custo_total
-        dados["lucro_bruto"] += lucro.lucro_bruto
+        dados["quantidade_vendida"] += item.quantidade
+        dados["receita_total"] += item.valor_total_produto
+        dados["custo_total"] += item.custo * item.quantidade
+        dados["lucro_bruto"] += item.lucro_bruto
         dados["vendas"] += 1
-    
+
     # Calcular margens
     for dados in produtos_rentabilidade.values():
         if dados["receita_total"] > 0:
             dados["margem_bruta"] = (dados["lucro_bruto"] / dados["receita_total"]) * 100
         else:
             dados["margem_bruta"] = Decimal('0')
-    
+
     # Totais gerais
     total_vendas = sum(p["receita_total"] for p in produtos_rentabilidade.values())
     total_custos = sum(p["custo_total"] for p in produtos_rentabilidade.values())
-    lucro_bruto_total = total_vendas - total_custos
+    lucro_bruto_total = sum(p["lucro_bruto"] for p in produtos_rentabilidade.values())
     margem_bruta_geral = (lucro_bruto_total / total_vendas * 100) if total_vendas > 0 else Decimal('0')
-    
+
     return {
         "data": {
             "periodo": {

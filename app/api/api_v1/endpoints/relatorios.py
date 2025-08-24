@@ -62,7 +62,6 @@ async def pagamentos_pendentes_por_cliente(
     
     for venda in vendas_pendentes:
         cliente_id = venda.cliente_id
-        
         if cliente_id not in clientes_pendentes:
             clientes_pendentes[cliente_id] = {
                 "cliente": {
@@ -74,20 +73,23 @@ async def pagamentos_pendentes_por_cliente(
                 },
                 "vendas_pendentes": [],
                 "total_pendente": Decimal('0.00'),
-                "quantidade_vendas": 0
+                "quantidade_vendas": 0,
+                "lucro_bruto_total": Decimal('0.00'),
+                "custo_total": Decimal('0.00')
             }
-        
         clientes_pendentes[cliente_id]["vendas_pendentes"].append({
             "id": venda.id,
             "data_venda": venda.data_venda,
             "total_venda": float(venda.total_venda),
-            "situacao_pedido": venda.situacao_pedido.value,
+            "lucro_bruto_total": float(getattr(venda, 'lucro_bruto_total', 0) or 0),
+            "custo_total": float(sum([item.custo * item.quantidade for item in venda.itens]) if hasattr(venda, 'itens') else 0),
             "observacoes": venda.observacoes,
             "dias_pendente": (datetime.now() - venda.data_venda).days
         })
-        
         clientes_pendentes[cliente_id]["total_pendente"] += venda.total_venda
         clientes_pendentes[cliente_id]["quantidade_vendas"] += 1
+        clientes_pendentes[cliente_id]["lucro_bruto_total"] += getattr(venda, 'lucro_bruto_total', 0) or 0
+        clientes_pendentes[cliente_id]["custo_total"] += sum([item.custo * item.quantidade for item in venda.itens]) if hasattr(venda, 'itens') else 0
         total_geral_pendente += venda.total_venda
     
     # Converter para lista e ordenar por total pendente
@@ -97,6 +99,8 @@ async def pagamentos_pendentes_por_cliente(
     # Converter Decimal para float para serialização
     for cliente in resultado:
         cliente["total_pendente"] = float(cliente["total_pendente"])
+        cliente["lucro_bruto_total"] = float(cliente["lucro_bruto_total"])
+        cliente["custo_total"] = float(cliente["custo_total"])
     
     return {
         "data": {
@@ -173,26 +177,15 @@ async def historico_vendas_cliente(
         func.sum(case((Venda.situacao_pagamento == SituacaoPagamento.PAGO, Venda.total_venda), else_=0)).label('total_pago')
     ).first()
     
-    # Formatar vendas para resposta
+    # Formatar vendas para resposta (sem separação)
     vendas_formatadas = []
     for venda in vendas:
-        funcionario_separacao = None
-        if venda.funcionario_separacao:
-            funcionario_separacao = {
-                "id": venda.funcionario_separacao.id,
-                "nome": venda.funcionario_separacao.nome,
-                "email": venda.funcionario_separacao.email
-            }
-        
         vendas_formatadas.append({
             "id": venda.id,
             "data_venda": venda.data_venda,
-            "data_separacao": venda.data_separacao,
             "total_venda": float(venda.total_venda),
-            "situacao_pedido": venda.situacao_pedido.value,
             "situacao_pagamento": venda.situacao_pagamento.value,
             "observacoes": venda.observacoes,
-            "funcionario_separacao": funcionario_separacao,
             "quantidade_itens": len(venda.itens)
         })
     
@@ -367,15 +360,13 @@ async def dashboard_vendas_periodo(
     if data_fim:
         query_base = query_base.filter(Venda.data_venda <= data_fim)
     
-    # KPIs principais
+    # KPIs principais (sem separação)
     kpis = query_base.with_entities(
         func.sum(Venda.total_venda).label('faturamento_total'),
         func.avg(Venda.total_venda).label('ticket_medio'),
         func.count(Venda.id).label('total_vendas'),
         func.sum(case((Venda.situacao_pagamento == SituacaoPagamento.PAGO, Venda.total_venda), else_=0)).label('total_pago'),
-        func.sum(case((Venda.situacao_pagamento == SituacaoPagamento.PENDENTE, Venda.total_venda), else_=0)).label('total_pendente'),
-        func.sum(case((Venda.situacao_pedido == SituacaoPedido.SEPARADO, 1), else_=0)).label('vendas_separadas'),
-        func.sum(case((Venda.situacao_pedido == SituacaoPedido.A_SEPARAR, 1), else_=0)).label('vendas_a_separar')
+        func.sum(case((Venda.situacao_pagamento == SituacaoPagamento.PENDENTE, Venda.total_venda), else_=0)).label('total_pendente')
     ).first()
     
     # Top 10 clientes por faturamento
@@ -413,22 +404,7 @@ async def dashboard_vendas_periodo(
                               .order_by(desc(func.sum(ItemVenda.valor_total_produto)))\
                               .limit(10).all()
     
-    # Performance de funcionários (separações)
-    performance_funcionarios = db.query(
-        Usuario.nome,
-        Usuario.email,
-        func.count(Venda.id).label('vendas_separadas'),
-        func.sum(Venda.total_venda).label('valor_separado')
-    ).join(Venda, Usuario.id == Venda.funcionario_separacao_id)\
-     .filter(Venda.funcionario_separacao_id.isnot(None))
-    
-    if data_inicio:
-        performance_funcionarios = performance_funcionarios.filter(Venda.data_separacao >= data_inicio)
-    if data_fim:
-        performance_funcionarios = performance_funcionarios.filter(Venda.data_separacao <= data_fim)
-        
-    performance_funcionarios = performance_funcionarios.group_by(Usuario.id, Usuario.nome, Usuario.email)\
-                                                      .order_by(desc(func.count(Venda.id))).all()
+    # Performance de funcionários removida (sem separação)
     
     return {
         "data": {
@@ -443,10 +419,7 @@ async def dashboard_vendas_periodo(
                 "total_vendas": kpis.total_vendas or 0,
                 "total_pago": float(kpis.total_pago or 0),
                 "total_pendente": float(kpis.total_pendente or 0),
-                "taxa_inadimplencia": float((kpis.total_pendente or 0) / (kpis.faturamento_total or 1) * 100),
-                "vendas_separadas": kpis.vendas_separadas or 0,
-                "vendas_a_separar": kpis.vendas_a_separar or 0,
-                "taxa_separacao": float((kpis.vendas_separadas or 0) / (kpis.total_vendas or 1) * 100)
+                "taxa_inadimplencia": float((kpis.total_pendente or 0) / (kpis.faturamento_total or 1) * 100)
             },
             "top_clientes": [
                 {
@@ -465,15 +438,6 @@ async def dashboard_vendas_periodo(
                     "faturamento": float(produto.faturamento_produto)
                 }
                 for produto in top_produtos
-            ],
-            "performance_funcionarios": [
-                {
-                    "nome": func.nome,
-                    "email": func.email,
-                    "vendas_separadas": func.vendas_separadas,
-                    "valor_separado": float(func.valor_separado)
-                }
-                for func in performance_funcionarios
             ]
         },
         "message": "Dashboard de vendas gerado com sucesso",

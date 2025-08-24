@@ -8,19 +8,16 @@ from app.core.database import get_db
 from app.core.deps import get_current_user, get_current_admin_user
 from app.models.venda import Venda, ItemVenda
 from app.core.enums import SituacaoPedido, SituacaoPagamento
-from app.models.estoque import LucroBruto, MovimentacaoCaixa
+ 
 from app.models.cliente import Cliente
 from app.models.produto import Produto
 from app.models.usuario import Usuario
-from app.models.estoque import Inventario
-from app.utils.timezone import now_brazil, start_of_day_brazil, end_of_day_brazil, format_brazil_datetime
+from app.utils.timezone import now_brazil
 from app.schemas.venda import (
-    Venda as VendaSchema, 
-    VendaCreate, 
-    VendaUpdate,
-    SeparacaoUpdate
+    Venda as VendaSchema,
+    VendaCreate
 )
-from app.services.fluxo_caixa import FluxoCaixaService
+# Removido fluxo de caixa e estoque
 #utcnow
 router = APIRouter()
 
@@ -120,66 +117,66 @@ async def obter_dashboard_vendas(
         )
         periodo_texto = f"de hoje ({hoje.strftime('%d/%m/%Y')})"
     
-    # === VENDAS DO PERÍODO ===
-    
-    # Vendas de hoje / período
+    # Vendas do período
     vendas_periodo = vendas_periodo_query.all()
-    
-    # Separar por situação
-    vendas_em_separacao = [v for v in vendas_periodo if v.situacao_pedido == SituacaoPedido.A_SEPARAR]
-    vendas_separadas = [v for v in vendas_periodo if v.situacao_pedido == SituacaoPedido.SEPARADO]
-    
-    # Calcular totais
-    total_vendas_periodo = sum(float(v.total_venda) for v in vendas_periodo)
-    total_em_separacao = sum(float(v.total_venda) for v in vendas_em_separacao)
-    total_separadas = sum(float(v.total_venda) for v in vendas_separadas)
-    
-    # === ESTATÍSTICAS DE CLIENTES ===
-    
-    # Total de clientes
+    total_vendas_periodo = len(vendas_periodo)
+    valor_total_vendas = sum(float(v.total_venda) for v in vendas_periodo)
+    lucro_bruto_total = sum(float(v.lucro_bruto_total or 0) for v in vendas_periodo)
+    ticket_medio = (valor_total_vendas / total_vendas_periodo) if total_vendas_periodo > 0 else 0
+
+    # Estatísticas de clientes
     total_clientes = db.query(Cliente).count()
-    
-    # Clientes ativos
     total_clientes_ativos = db.query(Cliente).filter(Cliente.ativo == True).count()
-    
-    # === VENDAS MENSAIS ===
-    
-    # Mês atual
-    mes_atual = hoje.month
-    ano_atual = hoje.year
-    
-    vendas_mes_atual = db.query(func.count(Venda.id), func.sum(Venda.total_venda)).filter(
-        and_(
-            extract('month', Venda.data_venda) == mes_atual,
-            extract('year', Venda.data_venda) == ano_atual
-        )
-    ).first()
-    
-    # Mês anterior
-    if mes_atual == 1:
-        mes_anterior = 12
-        ano_anterior = ano_atual - 1
-    else:
-        mes_anterior = mes_atual - 1
-        ano_anterior = ano_atual
-    
-    vendas_mes_anterior = db.query(func.count(Venda.id), func.sum(Venda.total_venda)).filter(
-        and_(
-            extract('month', Venda.data_venda) == mes_anterior,
-            extract('year', Venda.data_venda) == ano_anterior
-        )
-    ).first()
-    
-    # === PAGAMENTOS PENDENTES ===
-    
+
+    # Vendas mensais (últimos 12 meses)
+    from collections import OrderedDict
+    vendas_mensais = OrderedDict()
+    for i in range(11, -1, -1):
+        mes_ref = (hoje.month - i - 1) % 12 + 1
+        ano_ref = hoje.year if hoje.month - i > 0 else hoje.year - 1
+        vendas_mes = db.query(
+            func.count(Venda.id),
+            func.sum(Venda.total_venda),
+            func.sum(Venda.lucro_bruto_total)
+        ).filter(
+            extract('month', Venda.data_venda) == mes_ref,
+            extract('year', Venda.data_venda) == ano_ref
+        ).first()
+        vendas_mensais[f"{mes_ref:02d}/{ano_ref}"] = {
+            "quantidade": vendas_mes[0] or 0,
+            "valor_total": float(vendas_mes[1] or 0),
+            "lucro_bruto_total": float(vendas_mes[2] or 0)
+        }
+
+    # Pagamentos pendentes
     vendas_pendentes = db.query(Venda).filter(
         Venda.situacao_pagamento == SituacaoPagamento.PENDENTE
     ).all()
-    
     total_pagamentos_pendentes = sum(float(v.total_venda) for v in vendas_pendentes)
-    
-    # === MONTAR RESPOSTA ===
-    
+
+    # Ranking de clientes (top 5)
+    ranking_clientes = (
+        db.query(
+            Cliente.nome,
+            func.count(Venda.id).label('qtd_vendas'),
+            func.sum(Venda.total_venda).label('valor_total'),
+            func.sum(Venda.lucro_bruto_total).label('lucro_total')
+        )
+        .join(Venda, Venda.cliente_id == Cliente.id)
+        .group_by(Cliente.id)
+        .order_by(func.sum(Venda.total_venda).desc())
+        .limit(5)
+        .all()
+    )
+    ranking_clientes_list = [
+        {
+            "cliente": r.nome,
+            "qtd_vendas": r.qtd_vendas,
+            "valor_total": float(r.valor_total or 0),
+            "lucro_total": float(r.lucro_total or 0)
+        } for r in ranking_clientes
+    ]
+
     dashboard = {
         "periodo": {
             "data_inicio": data_inicio_dt.strftime("%Y-%m-%d"),
@@ -187,60 +184,17 @@ async def obter_dashboard_vendas(
             "descricao": periodo_texto
         },
         "vendas_periodo": {
-            "total_vendas": len(vendas_periodo),
-            "valor_total": total_vendas_periodo,
-            "em_separacao": {
-                "quantidade": len(vendas_em_separacao),
-                "valor": total_em_separacao,
-                "vendas": [
-                    {
-                        "id": v.id,
-                        "cliente": v.cliente.nome if v.cliente else "Cliente não encontrado",
-                        "valor": float(v.total_venda),
-                        "data_venda": v.data_venda.strftime("%Y-%m-%d %H:%M:%S")
-                    } for v in vendas_em_separacao
-                ]
-            },
-            "separadas": {
-                "quantidade": len(vendas_separadas),
-                "valor": total_separadas,
-                "vendas": [
-                    {
-                        "id": v.id,
-                        "cliente": v.cliente.nome if v.cliente else "Cliente não encontrado",
-                        "valor": float(v.total_venda),
-                        "data_venda": v.data_venda.strftime("%Y-%m-%d %H:%M:%S"),
-                        "data_separacao": v.data_separacao.strftime("%Y-%m-%d %H:%M:%S") if v.data_separacao else None
-                    } for v in vendas_separadas
-                ]
-            }
+            "total_vendas": total_vendas_periodo,
+            "valor_total": valor_total_vendas,
+            "lucro_bruto_total": lucro_bruto_total,
+            "ticket_medio": round(ticket_medio, 2)
         },
         "estatisticas_clientes": {
             "total_clientes": total_clientes,
             "clientes_ativos": total_clientes_ativos,
             "clientes_inativos": total_clientes - total_clientes_ativos
         },
-        "vendas_mensais": {
-            "mes_atual": {
-                "mes": mes_atual,
-                "ano": ano_atual,
-                "quantidade": vendas_mes_atual[0] or 0,
-                "valor_total": float(vendas_mes_atual[1] or 0)
-            },
-            "mes_anterior": {
-                "mes": mes_anterior,
-                "ano": ano_anterior,
-                "quantidade": vendas_mes_anterior[0] or 0,
-                "valor_total": float(vendas_mes_anterior[1] or 0)
-            },
-            "comparacao": {
-                "diferenca_quantidade": (vendas_mes_atual[0] or 0) - (vendas_mes_anterior[0] or 0),
-                "diferenca_valor": float((vendas_mes_atual[1] or 0) - (vendas_mes_anterior[1] or 0)),
-                "crescimento_percentual": round(
-                    ((vendas_mes_atual[1] or 0) - (vendas_mes_anterior[1] or 0)) / (vendas_mes_anterior[1] or 1) * 100, 2
-                ) if vendas_mes_anterior[1] else 0
-            }
-        },
+        "vendas_mensais": vendas_mensais,
         "pagamentos_pendentes": {
             "quantidade_vendas": len(vendas_pendentes),
             "valor_total": total_pagamentos_pendentes,
@@ -253,9 +207,10 @@ async def obter_dashboard_vendas(
                     "dias_pendente": (hoje - v.data_venda.date()).days
                 } for v in vendas_pendentes
             ]
-        }
+        },
+        "ranking_clientes": ranking_clientes_list
     }
-    
+
     return {
         "data": dashboard,
         "message": f"Dashboard de vendas obtido com sucesso - {periodo_texto}",
@@ -366,15 +321,19 @@ async def criar_venda(
         item_total = item.quantidade * item.valor_unitario
         total_venda += item_total
     
+    # Calcular lucro_bruto_total
+    lucro_bruto_total = sum([item.lucro_bruto for item in venda_data.itens])
+
     # Create venda
     db_venda = Venda(
         cliente_id=venda_data.cliente_id,
         total_venda=total_venda,
-        observacoes=venda_data.observacoes
+        observacoes=venda_data.observacoes,
+        lucro_bruto_total=lucro_bruto_total
     )
     db.add(db_venda)
     db.flush()  # Get the ID
-    
+
     # Create items
     for item in venda_data.itens:
         item_total = item.quantidade * item.valor_unitario
@@ -384,295 +343,26 @@ async def criar_venda(
             quantidade=item.quantidade,
             tipo_medida=item.tipo_medida,
             valor_unitario=item.valor_unitario,
+            custo=item.custo,
+            lucro_bruto=item.lucro_bruto,
             valor_total_produto=item_total
         )
         db.add(db_item)
-    
+
     db.commit()
     db.refresh(db_venda)
-    
+
     return {
         "data": VendaSchema.from_orm(db_venda),
         "message": "Venda criada com sucesso",
         "success": True
     }
 
-@router.post("/venda-rapida", response_model=dict)
-async def venda_rapida(
-    produtos: list = Body(..., example=[
-        {"produto_id": 1, "quantidade": 2.5, "tipo_medida": "KG"},
-        {"produto_id": 2, "quantidade": 1, "tipo_medida": "UNIDADE"}
-    ]),
-    cliente_id: Optional[int] = Body(None, description="ID do cliente (opcional)"),
-    observacoes: Optional[str] = Body(None),
-    current_user: Usuario = Depends(get_current_admin_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Realiza uma venda rápida (balcão), podendo ou não identificar o cliente.
-    Deduz do estoque e faz os cálculos FIFO normalmente.
-    """
-    total_venda = Decimal('0.00')
-    itens_venda = []
 
-    # Verifica cliente se informado
-    cliente = None
-    if cliente_id:
-        cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
-        if not cliente:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Cliente não encontrado"
-            )
 
-    # Verifica produtos e estoque
-    for item in produtos:
-        produto = db.query(Produto).filter(Produto.id == item["produto_id"]).first()
-        if not produto:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Produto com ID {item['produto_id']} não encontrado"
-            )
-        inventario = db.query(Inventario).filter(Inventario.produto_id == produto.id).first()
-        if not inventario or inventario.quantidade_atual < Decimal(str(item["quantidade"])):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Estoque insuficiente para o produto '{produto.nome}'"
-            )
-        valor_unitario = produto.preco_venda
-        valor_total = Decimal(str(item["quantidade"])) * valor_unitario
-        total_venda += valor_total
-        itens_venda.append({
-            "produto_id": produto.id,
-            "quantidade": Decimal(str(item["quantidade"])),
-            "tipo_medida": item["tipo_medida"],
-            "valor_unitario": valor_unitario,
-            "valor_total_produto": valor_total
-        })
 
-    # Cria a venda
-    db_venda = Venda(
-        cliente_id=cliente.id if cliente else None,
-        total_venda=total_venda,
-        observacoes=observacoes
-    )
-    db.add(db_venda)
-    db.flush()  # Para pegar o ID
 
-    # Cria os itens da venda e deduz do estoque
-    for item in itens_venda:
-        db_item = ItemVenda(
-            venda_id=db_venda.id,
-            produto_id=item["produto_id"],
-            quantidade=item["quantidade"],
-            tipo_medida=item["tipo_medida"],
-            valor_unitario=item["valor_unitario"],
-            valor_total_produto=item["valor_total_produto"],
-            quantidade_real=item["quantidade"]
-        )
-        db.add(db_item)
-        # Diminui do estoque
-        inventario = db.query(Inventario).filter(Inventario.produto_id == item["produto_id"]).first()
-        inventario.quantidade_atual -= item["quantidade"]
-        inventario.data_ultima_atualizacao = now_brazil()
 
-    # Marca venda como separada e paga (venda balcão)
-    db_venda.situacao_pedido = SituacaoPedido.SEPARADO
-    db_venda.situacao_pagamento = SituacaoPagamento.PAGO
-    db_venda.funcionario_separacao_id = current_user.id
-    db_venda.data_separacao = now_brazil()
-
-    db.commit()
-    db.refresh(db_venda)
-
-    # Processa FIFO e lucro bruto
-    fluxo_service = FluxoCaixaService(db)
-    fluxo_service.processar_venda_separada(db_venda)
-
-    return {
-        "data": VendaSchema.from_orm(db_venda),
-        "message": "Venda rápida realizada com sucesso",
-        "success": True
-    }
-
-@router.put("/{venda_id}/separacao", response_model=dict)
-async def atualizar_separacao(
-    venda_id: int,
-    separacao_data: SeparacaoUpdate,
-    current_user: Usuario = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Atualizar separação de produtos - Diminui do estoque"""
-    venda = db.query(Venda).filter(Venda.id == venda_id).first()
-    if not venda:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Venda não encontrada"
-        )
-    
-    # Verificar se a venda ainda não foi separada
-    if venda.situacao_pedido == SituacaoPedido.SEPARADO:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Esta venda já foi separada anteriormente"
-        )
-    
-    # Primeiro, verificar se há estoque suficiente para todos os produtos
-    produtos_com_estoque_insuficiente = []
-    
-    for produto_separado in separacao_data.produtos_separados:
-        produto_id = produto_separado.produto_id if hasattr(produto_separado, 'produto_id') else produto_separado["produto_id"]
-        quantidade_real = Decimal(str(produto_separado.quantidade_real if hasattr(produto_separado, 'quantidade_real') else produto_separado["quantidade_real"]))
-        
-        # Verificar se o produto existe no pedido
-        item = db.query(ItemVenda).filter(
-            ItemVenda.venda_id == venda_id,
-            ItemVenda.produto_id == produto_id
-        ).first()
-        
-        if not item:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Produto ID {produto_id} não encontrado nesta venda"
-            )
-        
-        # Verificar estoque disponível
-        inventario = db.query(Inventario).filter(
-            Inventario.produto_id == produto_id
-        ).first()
-        
-        if not inventario:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Produto '{item.produto.nome}' não possui estoque cadastrado"
-            )
-        
-        if inventario.quantidade_atual < quantidade_real:
-            produtos_com_estoque_insuficiente.append({
-                "produto_nome": item.produto.nome,
-                "quantidade_solicitada": float(quantidade_real),
-                "quantidade_disponivel": float(inventario.quantidade_atual)
-            })
-    
-    # Se algum produto não tem estoque suficiente, retornar erro
-    if produtos_com_estoque_insuficiente:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": "Estoque insuficiente para os seguintes produtos:",
-                "produtos": produtos_com_estoque_insuficiente
-            }
-        )
-    
-    # Se chegou até aqui, todos os produtos têm estoque suficiente
-    # Agora atualizar os itens e diminuir o estoque
-    novo_total = Decimal('0.00')
-    
-    for produto_separado in separacao_data.produtos_separados:
-        produto_id = produto_separado.produto_id if hasattr(produto_separado, 'produto_id') else produto_separado["produto_id"]
-        quantidade_real = Decimal(str(produto_separado.quantidade_real if hasattr(produto_separado, 'quantidade_real') else produto_separado["quantidade_real"]))
-        
-        # Atualizar item da venda
-        item = db.query(ItemVenda).filter(
-            ItemVenda.venda_id == venda_id,
-            ItemVenda.produto_id == produto_id
-        ).first()
-        
-        item.quantidade_real = quantidade_real
-        item.valor_total_produto = quantidade_real * item.valor_unitario
-        novo_total += item.valor_total_produto
-        
-        # Diminuir do estoque
-        inventario = db.query(Inventario).filter(
-            Inventario.produto_id == produto_id
-        ).first()
-        
-        inventario.quantidade_atual -= quantidade_real
-        from datetime import datetime
-        inventario.data_ultima_atualizacao = now_brazil()
-    
-    # Atualizar venda com informações de separação
-    venda.total_venda = novo_total
-    venda.situacao_pedido = SituacaoPedido.SEPARADO
-    venda.funcionario_separacao_id = current_user.id
-    venda.data_separacao = now_brazil()
-    
-    db.commit()
-    db.refresh(venda)
-    
-    # Processar no fluxo de caixa FIFO
-    fluxo_service = FluxoCaixaService(db)
-    lucros_gerados = fluxo_service.processar_venda_separada(venda)
-    
-    return {
-        "data": VendaSchema.from_orm(venda),
-        "message": "Separação atualizada com sucesso. Estoque diminuído automaticamente.",
-        "success": True
-    }
-
-@router.put("/{venda_id}/cancelar-separacao", response_model=dict)
-async def cancelar_separacao(
-    venda_id: int,
-    current_user: Usuario = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Cancelar separação - Retorna produtos ao estoque"""
-    venda = db.query(Venda).filter(Venda.id == venda_id).first()
-    if not venda:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Venda não encontrada"
-        )
-    
-    # Verificar se a venda está separada
-    if venda.situacao_pedido != SituacaoPedido.SEPARADO:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Esta venda não está separada"
-        )
-    
-    # Verificar se ainda não foi paga
-    if venda.situacao_pagamento == SituacaoPagamento.PAGO:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Não é possível cancelar separação de venda já paga"
-        )
-    
-    # Retornar produtos ao estoque
-    novo_total = Decimal('0.00')
-    itens = db.query(ItemVenda).filter(ItemVenda.venda_id == venda_id).all()
-    
-    for item in itens:
-        if item.quantidade_real:
-            # Retornar quantidade ao estoque
-            inventario = db.query(Inventario).filter(
-                Inventario.produto_id == item.produto_id
-            ).first()
-            
-            if inventario:
-                inventario.quantidade_atual += item.quantidade_real
-                from datetime import datetime
-                inventario.data_ultima_atualizacao = now_brazil()
-            
-            # Resetar quantidade real
-            item.quantidade_real = None
-            item.valor_total_produto = item.quantidade * item.valor_unitario
-            novo_total += item.valor_total_produto
-    
-    # Atualizar venda - limpar informações de separação
-    venda.total_venda = novo_total
-    venda.situacao_pedido = SituacaoPedido.A_SEPARAR
-    venda.funcionario_separacao_id = None
-    venda.data_separacao = None
-    
-    db.commit()
-    db.refresh(venda)
-    
-    return {
-        "data": VendaSchema.from_orm(venda),
-        "message": "Separação cancelada com sucesso. Produtos retornados ao estoque.",
-        "success": True
-    }
 
 @router.put("/{venda_id}/pagamento", response_model=dict)
 async def marcar_como_pago(
