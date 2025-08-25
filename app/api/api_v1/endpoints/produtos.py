@@ -17,7 +17,7 @@ router = APIRouter()
 async def listar_produtos(
     skip: int = Query(0, ge=0, description="Número de registros para pular"),
     limit: int = Query(20, ge=1, le=100, description="Número de registros por página"),
-    descricao: Optional[str] = Query(None, description="Filtrar por descrição"),
+    nome: Optional[str] = Query(None, description="Filtrar por nome"),
     ativo: Optional[bool] = Query(None, description="Filtrar por status ativo"),
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -25,9 +25,9 @@ async def listar_produtos(
     """Listar produtos com filtros e paginação"""
     query = db.query(Produto)
     
-    # Apply filters
-    if descricao:
-        query = query.filter(Produto.descricao.ilike(f"%{descricao}%"))
+    # Filtrar por nome
+    if nome:
+        query = query.filter(Produto.nome.ilike(f"%{nome}%"))
     
     if ativo is not None:
         query = query.filter(Produto.ativo == ativo)

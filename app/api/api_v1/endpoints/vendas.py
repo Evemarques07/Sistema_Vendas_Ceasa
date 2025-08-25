@@ -408,34 +408,24 @@ async def excluir_venda(
         )
 
     # Verifica se a venda foi criada há menos de 24h
-    if (now_brazil() - venda.data_venda).total_seconds() > 86400:
+    # Corrigir diferença entre datetime aware e naive
+    data_venda = venda.data_venda
+    data_venda_naive = data_venda.replace(tzinfo=None) if data_venda.tzinfo is not None else data_venda
+    now_naive = now_brazil().replace(tzinfo=None)
+    if (now_naive - data_venda_naive).total_seconds() > 86400:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Só é possível excluir vendas criadas há menos de 24 horas"
         )
 
-    # Retorna os produtos ao estoque
+    # Exclui os itens e a venda (sem lógica de estoque/lucro/caixa)
     itens = db.query(ItemVenda).filter(ItemVenda.venda_id == venda_id).all()
-    for item in itens:
-        inventario = db.query(Inventario).filter(Inventario.produto_id == item.produto_id).first()
-        if inventario:
-            quantidade = item.quantidade_real if item.quantidade_real is not None else item.quantidade
-            inventario.quantidade_atual += quantidade
-            inventario.data_ultima_atualizacao = now_brazil()
-
-    # Exclui registros de lucro bruto relacionados à venda
-    db.query(LucroBruto).filter(LucroBruto.venda_id == venda_id).delete()
-
-    # Exclui registros de movimentação de caixa relacionados à venda
-    db.query(MovimentacaoCaixa).filter(MovimentacaoCaixa.venda_id == venda_id).delete(synchronize_session=False)
-
-    # Exclui os itens e a venda
     for item in itens:
         db.delete(item)
     db.delete(venda)
     db.commit()
 
     return {
-        "message": "Venda excluída e produtos retornados ao estoque com sucesso.",
+        "message": "Venda excluída com sucesso.",
         "success": True
     }
