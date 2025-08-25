@@ -39,21 +39,21 @@ async def verificar_administrador(
         "success": True
     }
 
-#endpoint para criar administrador, não permitir mais de um administrador
+#endpoint para criar administrador, permitir até dois administradores
 @router.post("/administradores", response_model=dict)
 async def criar_administrador(
     administrador: UsuarioBase,
     db: Session = Depends(get_db)
 ):
-    """Cria um novo administrador"""
-    # Verifica se já existe um administrador
-    administrador_existente = db.query(Usuario).filter(
-        (Usuario.tipo == TipoUsuario.ADMINISTRADOR)
-    ).first()
-    if administrador_existente:
+    """Cria um novo administrador (máximo de 2)"""
+    # Verifica se já existem dois administradores
+    total_admins = db.query(Usuario).filter(
+        Usuario.tipo == TipoUsuario.ADMINISTRADOR
+    ).count()
+    if total_admins >= 2:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Já existe um administrador cadastrado"
+            detail="Limite de administradores atingido (máximo 2)"
         )
 
     # Cria o hash da senha padrão
